@@ -15,16 +15,15 @@ if 'player_score' not in st.session_state:
     st.session_state.round_number = 1
     st.session_state.game_state = 'menu'
     st.session_state.countdown = 3
-    st.session_state.winning_score = 5  # Adjust winning score as desired
+    st.session_state.winning_score = 5
     st.session_state.last_result = ''
     st.session_state.player_choice = ''
     st.session_state.computer_choice = ''
     st.session_state.countdown_active = False
     st.session_state.timer_start = None
 
-# Function to classify hand gestures
+# Function to classify hand gestures based on landmarks
 def classify_hand_gesture(hand_landmarks):
-    # Classify based on finger positions
     thumb_is_open = hand_landmarks.landmark[4].x < hand_landmarks.landmark[2].x
     fingers_open = [hand_landmarks.landmark[tip].y < hand_landmarks.landmark[tip - 2].y for tip in [8, 12, 16, 20]]
     open_count = sum(fingers_open)
@@ -39,6 +38,7 @@ def classify_hand_gesture(hand_landmarks):
     else:
         return 'Unknown'
 
+# Function to reset the game state
 def reset_game():
     st.session_state.player_score = 0
     st.session_state.computer_score = 0
@@ -53,10 +53,11 @@ def reset_game():
 
 # Title and instructions
 st.title('Rock Paper Scissors Game')
-st.write('Play Rock-Paper-Scissors against the computer using your webcam!')
+st.write("### Play against the computer using your webcam!")
 
 # Main Menu
 if st.session_state.game_state == 'menu':
+    st.write("Press **Start Game** to begin.")
     if st.button('Start Game'):
         st.session_state.game_state = 'countdown'
         st.session_state.countdown_active = True
@@ -73,19 +74,15 @@ elif st.session_state.game_state == 'countdown':
             st.session_state.game_state = 'playing'
     else:
         st.session_state.game_state = 'playing'
-        st.session_state.player_choice = ''
-        st.session_state.computer_choice = ''
-        st.session_state.last_result = ''
-        st.session_state.timer_start = None
 elif st.session_state.game_state == 'playing':
     st.write(f'**Round {st.session_state.round_number}**')
-    st.write('Make your move by showing Rock, Paper, or Scissors!')
+    st.write('Show your hand gesture for Rock, Paper, or Scissors!')
 
     # Capture image from webcam
     img_file_buffer = st.camera_input("Capture your move")
 
     if img_file_buffer is not None:
-        # To read image file buffer with OpenCV:
+        # Convert image to OpenCV format
         bytes_data = img_file_buffer.getvalue()
         np_arr = np.frombuffer(bytes_data, np.uint8)
         frame = cv2.imdecode(np_arr, cv2.IMREAD_COLOR)
@@ -120,24 +117,20 @@ elif st.session_state.game_state == 'playing':
                     result = "Computer wins this round!"
                     st.session_state.computer_score += 1
 
+                # Display round result and scores
                 st.session_state.player_choice = player_choice
                 st.session_state.computer_choice = computer_choice
                 st.session_state.last_result = result
 
-                # Display the frame with landmarks
+                # Show image and feedback
                 st.image(frame_rgb, caption='Your Move', use_column_width=True)
-
-                # Show choices and result
                 st.write(f'**You chose:** {player_choice}')
                 st.write(f'**Computer chose:** {computer_choice}')
                 st.write(f'**{result}**')
+                st.write(f'**Score:** You {st.session_state.player_score} - Computer {st.session_state.computer_score}')
 
-                # Display scores
-                st.write(f'Score: **You {st.session_state.player_score}** - **Computer {st.session_state.computer_score}**')
-
+                # Advance round or end game
                 st.session_state.round_number += 1
-
-                # Check for game over
                 if st.session_state.player_score >= st.session_state.winning_score or st.session_state.computer_score >= st.session_state.winning_score:
                     st.session_state.game_state = 'game_over'
                 else:
@@ -150,13 +143,12 @@ elif st.session_state.game_state == 'playing':
                 st.write('Could not recognize your gesture. Please try again.')
                 st.image(frame_rgb, caption='Your Move', use_column_width=True)
 else:
-    # Game Over
+    # Game Over Screen
     if st.session_state.player_score > st.session_state.computer_score:
-        st.success('## Congratulations, You Won the Game!')
+        st.success('### Congratulations, You Won the Game!')
     else:
-        st.error('## Sorry, Computer Won the Game.')
+        st.error('### Sorry, Computer Won the Game.')
 
-    st.write(f'**Final Score**: You {st.session_state.player_score} - Computer {st.session_state.computer_score}')
-
+    st.write(f'**Final Score:** You {st.session_state.player_score} - Computer {st.session_state.computer_score}')
     if st.button('Play Again'):
         reset_game()
