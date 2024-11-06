@@ -3,15 +3,24 @@ import cv2
 import mediapipe as mp
 import numpy as np
 import random
+import time
 
 # Initialize Mediapipe Hands for hand tracking
 mp_hands = mp.solutions.hands
 
-# Initialize scores and game state
-player_score = 0
-computer_score = 0
-round_number = 1
-winning_score = 5  # Set the winning score
+# Initialize session state variables
+if 'player_score' not in st.session_state:
+    st.session_state.player_score = 0
+    st.session_state.computer_score = 0
+    st.session_state.round_number = 1
+    st.session_state.game_state = 'menu'
+    st.session_state.countdown = 3
+    st.session_state.winning_score = 3  # Adjust winning score as desired
+    st.session_state.last_result = ''
+    st.session_state.player_choice = ''
+    st.session_state.computer_choice = ''
+    st.session_state.countdown_active = False
+    st.session_state.timer_start = None
 
 # Function to classify hand gestures
 def classify_hand_gesture(hand_landmarks):
@@ -48,26 +57,44 @@ def classify_hand_gesture(hand_landmarks):
     else:
         return 'Unknown'
 
-st.title('Rock Paper Scissors Game')
-st.write('Play Rock-Paper-Scissors against the computer using your webcam!')
-
-# Initialize session state variables
-if 'player_score' not in st.session_state:
-    st.session_state.player_score = 0
-    st.session_state.computer_score = 0
-    st.session_state.round_number = 1
-    st.session_state.game_state = 'menu'
-
 def reset_game():
     st.session_state.player_score = 0
     st.session_state.computer_score = 0
     st.session_state.round_number = 1
     st.session_state.game_state = 'menu'
+    st.session_state.countdown = 3
+    st.session_state.last_result = ''
+    st.session_state.player_choice = ''
+    st.session_state.computer_choice = ''
+    st.session_state.countdown_active = False
+    st.session_state.timer_start = None
+
+# Title and instructions
+st.title('Rock Paper Scissors Game')
+st.write('Play Rock-Paper-Scissors against the computer using your webcam!')
 
 # Main Menu
 if st.session_state.game_state == 'menu':
     if st.button('Start Game'):
+        st.session_state.game_state = 'countdown'
+        st.session_state.countdown_active = True
+        st.session_state.timer_start = time.time()
+elif st.session_state.game_state == 'countdown':
+    # Countdown logic
+    if st.session_state.countdown_active:
+        elapsed_time = int(time.time() - st.session_state.timer_start)
+        st.session_state.countdown = 3 - elapsed_time
+        if st.session_state.countdown > 0:
+            st.write(f'Get Ready: {st.session_state.countdown}')
+        else:
+            st.session_state.countdown_active = False
+            st.session_state.game_state = 'playing'
+    else:
         st.session_state.game_state = 'playing'
+        st.session_state.player_choice = ''
+        st.session_state.computer_choice = ''
+        st.session_state.last_result = ''
+        st.session_state.timer_start = None
 elif st.session_state.game_state == 'playing':
     st.write(f'Round {st.session_state.round_number}')
     st.write('Make your move!')
@@ -119,23 +146,37 @@ elif st.session_state.game_state == 'playing':
                     result = "Computer wins this round!"
                     st.session_state.computer_score += 1
 
-                st.write(f'You chose: **{player_choice}**')
-                st.write(f'Computer chose: **{computer_choice}**')
-                st.write(f'**{result}**')
+                st.session_state.player_choice = player_choice
+                st.session_state.computer_choice = computer_choice
+                st.session_state.last_result = result
 
                 # Display the frame with landmarks
                 st.image(frame, caption='Your Move', use_column_width=True)
 
+                # Show choices and result
+                st.write(f'You chose: **{player_choice}**')
+                st.write(f'Computer chose: **{computer_choice}**')
+                st.write(f'**{result}**')
+
+                # Display scores
                 st.write(f'Score: You {st.session_state.player_score} - Computer {st.session_state.computer_score}')
 
                 st.session_state.round_number += 1
 
                 # Check for game over
-                if st.session_state.player_score >= winning_score or st.session_state.computer_score >= winning_score:
+                if st.session_state.player_score >= st.session_state.winning_score or st.session_state.computer_score >= st.session_state.winning_score:
                     st.session_state.game_state = 'game_over'
-
+                else:
+                    # Start next round after countdown
+                    if st.button('Next Round'):
+                        st.session_state.game_state = 'countdown'
+                        st.session_state.countdown = 3
+                        st.session_state.countdown_active = True
+                        st.session_state.timer_start = time.time()
             else:
                 st.write('Could not recognize your gesture. Please try again.')
+                # Display the frame with landmarks
+                st.image(frame, caption='Your Move', use_column_width=True)
 else:
     # Game Over
     if st.session_state.player_score > st.session_state.computer_score:
